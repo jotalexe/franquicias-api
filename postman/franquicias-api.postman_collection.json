@@ -1,0 +1,354 @@
+{
+  "info": {
+    "name": "Franchise API",
+    "description": "Coleccion de pruebas para la API de franquicias, sucursales y productos. Ejecutar en orden (Collection Runner) ya que los requests encadenan IDs via variables de coleccion.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080" },
+    { "key": "franchiseId", "value": "" },
+    { "key": "branchId", "value": "" },
+    { "key": "branchTwoId", "value": "" },
+    { "key": "productId", "value": "" },
+    { "key": "productTwoId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "01 - Positivos",
+      "item": [
+        {
+          "name": "Crear franquicia",
+          "event": [{
+            "listen": "test",
+            "script": { "type": "text/javascript", "exec": [
+              "pm.test('201 Created', () => pm.response.to.have.status(201));",
+              "const body = pm.response.json();",
+              "pm.test('tiene id y name', () => { pm.expect(body.id).to.be.a('number'); pm.expect(body.name).to.eql('Franquicia Postman'); });",
+              "pm.collectionVariables.set('franchiseId', body.id);"
+            ]}
+          }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/franchises",
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Franquicia Postman\"\n}" }
+          }
+        },
+        {
+          "name": "Crear sucursal",
+          "event": [{
+            "listen": "test",
+            "script": { "type": "text/javascript", "exec": [
+              "pm.test('201 Created', () => pm.response.to.have.status(201));",
+              "const body = pm.response.json();",
+              "pm.test('franchiseId correcto', () => pm.expect(body.franchiseId).to.eql(pm.collectionVariables.get('franchiseId')));",
+              "pm.collectionVariables.set('branchId', body.id);"
+            ]}
+          }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/franchises/{{franchiseId}}/branches",
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Sucursal Medellin\"\n}" }
+          }
+        },
+        {
+          "name": "Crear segunda sucursal (para caso de producto cruzado)",
+          "event": [{
+            "listen": "test",
+            "script": { "type": "text/javascript", "exec": [
+              "pm.test('201 Created', () => pm.response.to.have.status(201));",
+              "pm.collectionVariables.set('branchTwoId', pm.response.json().id);"
+            ]}
+          }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/franchises/{{franchiseId}}/branches",
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Sucursal Bogota\"\n}" }
+          }
+        },
+        {
+          "name": "Crear producto",
+          "event": [{
+            "listen": "test",
+            "script": { "type": "text/javascript", "exec": [
+              "pm.test('201 Created', () => pm.response.to.have.status(201));",
+              "const body = pm.response.json();",
+              "pm.test('stock correcto', () => pm.expect(body.stock).to.eql(100));",
+              "pm.collectionVariables.set('productId', body.id);"
+            ]}
+          }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/branches/{{branchId}}/products",
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Producto A\",\n  \"stock\": 100\n}" }
+          }
+        },
+        {
+          "name": "Crear segundo producto (mayor stock)",
+          "event": [{
+            "listen": "test",
+            "script": { "type": "text/javascript", "exec": [
+              "pm.test('201 Created', () => pm.response.to.have.status(201));",
+              "pm.collectionVariables.set('productTwoId', pm.response.json().id);"
+            ]}
+          }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/branches/{{branchId}}/products",
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Producto B\",\n  \"stock\": 250\n}" }
+          }
+        },
+        {
+          "name": "Actualizar stock de producto",
+          "event": [{
+            "listen": "test",
+            "script": { "type": "text/javascript", "exec": [
+              "pm.test('200 OK', () => pm.response.to.have.status(200));",
+              "pm.test('stock actualizado', () => pm.expect(pm.response.json().stock).to.eql(300));"
+            ]}
+          }],
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/products/{{productTwoId}}/stock",
+            "body": { "mode": "raw", "raw": "{\n  \"stock\": 300\n}" }
+          }
+        },
+        {
+          "name": "Consultar producto con mayor stock por sucursal",
+          "event": [{
+            "listen": "test",
+            "script": { "type": "text/javascript", "exec": [
+              "pm.test('200 OK', () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.test('incluye la sucursal con el producto de mayor stock', () => {",
+              "  const entry = body.find(b => b.branchId === pm.collectionVariables.get('branchId'));",
+              "  pm.expect(entry.productId).to.eql(pm.collectionVariables.get('productTwoId'));",
+              "  pm.expect(entry.stock).to.eql(300);",
+              "});"
+            ]}
+          }],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/franchises/{{franchiseId}}/products/max-stock"
+          }
+        },
+        {
+          "name": "Actualizar nombre de franquicia",
+          "event": [{
+            "listen": "test",
+            "script": { "type": "text/javascript", "exec": [
+              "pm.test('200 OK', () => pm.response.to.have.status(200));",
+              "pm.test('nombre actualizado', () => pm.expect(pm.response.json().name).to.eql('Franquicia Postman Renombrada'));"
+            ]}
+          }],
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/franchises/{{franchiseId}}",
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Franquicia Postman Renombrada\"\n}" }
+          }
+        },
+        {
+          "name": "Actualizar nombre de sucursal",
+          "event": [{
+            "listen": "test",
+            "script": { "type": "text/javascript", "exec": [
+              "pm.test('200 OK', () => pm.response.to.have.status(200));",
+              "pm.test('nombre actualizado', () => pm.expect(pm.response.json().name).to.eql('Sucursal Medellin Renombrada'));"
+            ]}
+          }],
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/branches/{{branchId}}",
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Sucursal Medellin Renombrada\"\n}" }
+          }
+        },
+        {
+          "name": "Actualizar nombre de producto",
+          "event": [{
+            "listen": "test",
+            "script": { "type": "text/javascript", "exec": [
+              "pm.test('200 OK', () => pm.response.to.have.status(200));",
+              "pm.test('nombre actualizado', () => pm.expect(pm.response.json().name).to.eql('Producto A Renombrado'));"
+            ]}
+          }],
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/products/{{productId}}",
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Producto A Renombrado\"\n}" }
+          }
+        },
+        {
+          "name": "Eliminar producto",
+          "event": [{
+            "listen": "test",
+            "script": { "type": "text/javascript", "exec": [
+              "pm.test('204 No Content', () => pm.response.to.have.status(204));"
+            ]}
+          }],
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/api/branches/{{branchId}}/products/{{productId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 - Negativos",
+      "item": [
+        {
+          "name": "Crear franquicia - nombre vacio",
+          "event": [{
+            "listen": "test",
+            "script": { "type": "text/javascript", "exec": [
+              "pm.test('400 Bad Request', () => pm.response.to.have.status(400));",
+              "pm.test('estructura de error', () => { const b = pm.response.json(); pm.expect(b.status).to.eql(400); pm.expect(b).to.have.property('timestamp'); });"
+            ]}
+          }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/franchises",
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"\"\n}" }
+          }
+        },
+        {
+          "name": "Crear sucursal - franquicia inexistente",
+          "event": [{
+            "listen": "test",
+            "script": { "type": "text/javascript", "exec": [
+              "pm.test('404 Not Found', () => pm.response.to.have.status(404));"
+            ]}
+          }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/franchises/999999999/branches",
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Sucursal Fantasma\"\n}" }
+          }
+        },
+        {
+          "name": "Crear producto - stock negativo",
+          "event": [{
+            "listen": "test",
+            "script": { "type": "text/javascript", "exec": [
+              "pm.test('400 Bad Request', () => pm.response.to.have.status(400));"
+            ]}
+          }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/branches/{{branchId}}/products",
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Producto Invalido\",\n  \"stock\": -5\n}" }
+          }
+        },
+        {
+          "name": "Crear producto - sucursal inexistente",
+          "event": [{
+            "listen": "test",
+            "script": { "type": "text/javascript", "exec": [
+              "pm.test('404 Not Found', () => pm.response.to.have.status(404));"
+            ]}
+          }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/branches/999999999/products",
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Producto\",\n  \"stock\": 10\n}" }
+          }
+        },
+        {
+          "name": "Crear producto - JSON invalido",
+          "event": [{
+            "listen": "test",
+            "script": { "type": "text/javascript", "exec": [
+              "pm.test('400 Bad Request', () => pm.response.to.have.status(400));"
+            ]}
+          }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/branches/{{branchId}}/products",
+            "body": { "mode": "raw", "raw": "{ esto no es json valido" }
+          }
+        },
+        {
+          "name": "Actualizar stock - valor negativo",
+          "event": [{
+            "listen": "test",
+            "script": { "type": "text/javascript", "exec": [
+              "pm.test('400 Bad Request', () => pm.response.to.have.status(400));"
+            ]}
+          }],
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/products/{{productTwoId}}/stock",
+            "body": { "mode": "raw", "raw": "{\n  \"stock\": -1\n}" }
+          }
+        },
+        {
+          "name": "Actualizar stock - producto inexistente",
+          "event": [{
+            "listen": "test",
+            "script": { "type": "text/javascript", "exec": [
+              "pm.test('404 Not Found', () => pm.response.to.have.status(404));"
+            ]}
+          }],
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/products/999999999/stock",
+            "body": { "mode": "raw", "raw": "{\n  \"stock\": 10\n}" }
+          }
+        },
+        {
+          "name": "Eliminar producto - producto de otra sucursal",
+          "event": [{
+            "listen": "test",
+            "script": { "type": "text/javascript", "exec": [
+              "pm.test('404 Not Found (producto no pertenece a la sucursal)', () => pm.response.to.have.status(404));"
+            ]}
+          }],
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/api/branches/{{branchTwoId}}/products/{{productTwoId}}"
+          }
+        },
+        {
+          "name": "Eliminar producto - producto inexistente",
+          "event": [{
+            "listen": "test",
+            "script": { "type": "text/javascript", "exec": [
+              "pm.test('404 Not Found', () => pm.response.to.have.status(404));"
+            ]}
+          }],
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/api/branches/{{branchId}}/products/999999999"
+          }
+        },
+        {
+          "name": "Consultar max-stock - franquicia inexistente",
+          "event": [{
+            "listen": "test",
+            "script": { "type": "text/javascript", "exec": [
+              "pm.test('404 Not Found', () => pm.response.to.have.status(404));"
+            ]}
+          }],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/franchises/999999999/products/max-stock"
+          }
+        }
+      ]
+    }
+  ]
+}
